@@ -205,6 +205,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
      * @param relayPipelineFactoryFactory The relay pipeline factory.
      * @param clientChannelFactory The factory for creating outgoing channels
      * to external sites.
+     * @param socketSelector The network interface selector.
      */
     public HttpRequestHandler(final ProxyCacheManager cacheManager, 
         final ProxyAuthorizationManager authorizationManager, 

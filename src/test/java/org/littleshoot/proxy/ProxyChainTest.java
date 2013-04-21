@@ -1,17 +1,20 @@
 package org.littleshoot.proxy;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.littleshoot.proxy.TestUtils.createProxiedHttpClient;
+import static org.littleshoot.proxy.TestUtils.startProxyServer;
+import static org.littleshoot.proxy.TestUtils.startWebServer;
+
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.eclipse.jetty.server.Server;
+import org.junit.After;
 import org.junit.Test;
-
-import javax.servlet.http.HttpServletResponse;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.littleshoot.proxy.TestUtils.*;
 
 public class ProxyChainTest {
 
@@ -26,6 +29,20 @@ public class ProxyChainTest {
     private HttpProxyServer anotherProxyServer;
     private HttpClient httpclient;
 
+    @After public void stop() {
+    	proxyServer.stop();
+        try {
+			webServer.stop();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+        if (anotherProxyServer != null) {
+        	anotherProxyServer.stop();
+        }
+
+    }
+
+
     @Test public void testSingleProxy() throws Exception {
         // Given
         webServer = startWebServer(WEB_SERVER_PORT);
@@ -39,15 +56,13 @@ public class ProxyChainTest {
         assertEquals(HttpServletResponse.SC_OK, response.getStatusLine().getStatusCode());
         assertNotNull(response.getFirstHeader("Via"));
 
-        webServer.stop();
-        proxyServer.stop();
     }
 
     @Test public void testChainedProxy() throws Exception {
         // Given
         webServer = startWebServer(WEB_SERVER_PORT);
         proxyServer = startProxyServer(PROXY_PORT);
-        anotherProxyServer = startProxyServer(ANOTHER_PROXY_PORT, PROXY_HOST_AND_PORT);
+        anotherProxyServer = startProxyServer(ANOTHER_PROXY_PORT, new ProxyServerAddress(PROXY_HOST_AND_PORT));
         httpclient = createProxiedHttpClient(ANOTHER_PROXY_PORT);
 
         // When
@@ -57,9 +72,51 @@ public class ProxyChainTest {
         assertEquals(HttpServletResponse.SC_OK, response.getStatusLine().getStatusCode());
         assertNotNull(response.getFirstHeader("Via"));
 
-        webServer.stop();
-        anotherProxyServer.stop();
-        proxyServer.stop();
     }
+
+    @Test public void testPasswordProtectedChainedProxyDeny() throws Exception {
+        webServer = startWebServer(WEB_SERVER_PORT);
+        proxyServer = startProxyServer(PROXY_PORT);
+        proxyServer.addProxyAuthenticationHandler(new ProxyAuthorizationHandler() {
+
+			@Override
+			public boolean authenticate(String userName, String password) {
+				return "testuser".equals(userName) && "testpassword".equals(password);
+			}
+		});
+        anotherProxyServer = startProxyServer(ANOTHER_PROXY_PORT, new ProxyServerAddress(PROXY_HOST_AND_PORT));
+        httpclient = createProxiedHttpClient(ANOTHER_PROXY_PORT);
+
+        // When
+        final HttpResponse response = httpclient.execute(WEB_SERVER_HOST, new HttpGet("/"));
+
+        // Then
+        assertEquals(HttpServletResponse.SC_PROXY_AUTHENTICATION_REQUIRED, response.getStatusLine().getStatusCode());
+        assertNotNull(response.getFirstHeader("Via"));
+
+    }
+
+    @Test public void testPasswordProtectedChainedProxy() throws Exception {
+        webServer = startWebServer(WEB_SERVER_PORT);
+        proxyServer = startProxyServer(PROXY_PORT);
+        proxyServer.addProxyAuthenticationHandler(new ProxyAuthorizationHandler() {
+
+			@Override
+			public boolean authenticate(String userName, String password) {
+				return "testuser".equals(userName) && "testpassword".equals(password);
+			}
+		});
+        anotherProxyServer = startProxyServer(ANOTHER_PROXY_PORT, new ProxyServerAddress(PROXY_HOST_AND_PORT, "testuser", "testpassword"));
+        httpclient = createProxiedHttpClient(ANOTHER_PROXY_PORT);
+
+        // When
+        final HttpResponse response = httpclient.execute(WEB_SERVER_HOST, new HttpGet("/"));
+
+        // Then
+        assertEquals(HttpServletResponse.SC_OK, response.getStatusLine().getStatusCode());
+        assertNotNull(response.getFirstHeader("Via"));
+
+    }
+
 
 }

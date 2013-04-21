@@ -19,6 +19,7 @@ public class ProxyHttpRequestEncoder extends HttpRequestEncoder {
     private final HttpRelayingHandler relayingHandler;
     private final HttpRequestFilter requestFilter;
     private final boolean keepProxyFormat;
+    private final ProxyServerAddress serverAddress;
     private final boolean transparent;
 
     /**
@@ -29,7 +30,13 @@ public class ProxyHttpRequestEncoder extends HttpRequestEncoder {
      * and response pair.
      */
     public ProxyHttpRequestEncoder(final HttpRelayingHandler handler) {
-        this(handler, null, false);
+        this(handler, null, false, null);
+    }
+
+    public ProxyHttpRequestEncoder(final HttpRelayingHandler handler,
+            final HttpRequestFilter requestFilter,
+            final ServerAddress serverAddress) {
+    	this(handler, requestFilter, serverAddress.isProxy(), serverAddress.isProxy() ? (ProxyServerAddress) serverAddress : null);
     }
 
     /**
@@ -40,14 +47,17 @@ public class ProxyHttpRequestEncoder extends HttpRequestEncoder {
      * and response pair.
      * @param requestFilter The filter for requests.
      * @param keepProxyFormat keep proxy-formatted URI (used in chaining)
+     * @param serverAddress the next proxy server address.
      */
     public ProxyHttpRequestEncoder(final HttpRelayingHandler handler,
                                    final HttpRequestFilter requestFilter,
-                                   final boolean keepProxyFormat) {
+                                   final boolean keepProxyFormat,
+                                   final ProxyServerAddress serverAddress) {
 
         this.relayingHandler = handler;
         this.requestFilter = requestFilter;
         this.keepProxyFormat = keepProxyFormat;
+        this.serverAddress = serverAddress;
         this.transparent = LittleProxyConfig.isTransparent();
     }
 
@@ -70,6 +80,9 @@ public class ProxyHttpRequestEncoder extends HttpRequestEncoder {
                 toSend = request;
             } else {
                 toSend = ProxyUtils.copyHttpRequest(request, keepProxyFormat);
+            }
+            if (serverAddress != null) {
+            	serverAddress.addAuthentication(toSend);
             }
             if (this.requestFilter != null) {
                 this.requestFilter.filter(toSend);

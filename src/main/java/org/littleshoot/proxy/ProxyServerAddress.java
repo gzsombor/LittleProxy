@@ -3,6 +3,13 @@
  */
 package org.littleshoot.proxy;
 
+import java.io.UnsupportedEncodingException;
+
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
+import org.jboss.netty.handler.codec.http.HttpRequest;
+
 /**
  * @author Zsombor Gegesy
  *
@@ -34,6 +41,22 @@ public class ProxyServerAddress extends ServerAddress {
 
 	public String getProxyUser() {
 		return proxyUser;
+	}
+
+	public void addAuthentication(HttpRequest request) {
+		if (!(StringUtils.isBlank(proxyUser) || StringUtils
+				.isBlank(proxyPassword))) {
+			String key = proxyUser + ':' + proxyPassword;
+			String hash;
+			try {
+				hash = Base64.encodeBase64String(key.getBytes("UTF-8"));
+				request.addHeader(HttpHeaders.Names.PROXY_AUTHORIZATION,
+						"Basic " + hash);
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException("UTF-8 not present: "
+						+ e.getMessage(), e);
+			}
+		}
 	}
 
 	/* (non-Javadoc)

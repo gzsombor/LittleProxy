@@ -72,6 +72,7 @@ public class DefaultHttpProxyServer implements HttpProxyServer {
 
     private final ProxyCacheManager cacheManager;
 
+
     private LocalSocketSelector localSocketSelector;
 
     /**

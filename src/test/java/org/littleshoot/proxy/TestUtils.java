@@ -39,10 +39,10 @@ public class TestUtils {
      * @param chainProxyHostAndPort Proxy relay
      * @return The instance of proxy server
      */
-    public static HttpProxyServer startProxyServer(int port, final String chainProxyHostAndPort) {
+    public static HttpProxyServer startProxyServer(int port, final ProxyServerAddress chainProxy) {
         final DefaultHttpProxyServer proxyServer = new DefaultHttpProxyServer(port, null, new ChainProxyManager() {
             public ProxyServerAddress getChainProxy(HttpRequest httpRequest) {
-                return new ProxyServerAddress(chainProxyHostAndPort);
+                return chainProxy;
             }
 
             public void onCommunicationError(String hostAndPort) {
