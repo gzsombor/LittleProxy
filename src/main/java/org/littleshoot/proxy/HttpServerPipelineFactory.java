@@ -18,6 +18,7 @@ import org.jboss.netty.channel.socket.ClientSocketChannelFactory;
 import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.timeout.IdleStateHandler;
 import org.jboss.netty.util.Timer;
+import org.littleshoot.proxy.netiface.LocalSocketSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,6 +43,7 @@ public class HttpServerPipelineFactory implements ChannelPipelineFactory,
     private final RelayPipelineFactoryFactory relayPipelineFactoryFactory;
     private final Timer timer;
     private final ClientSocketChannelFactory clientChannelFactory;
+    private final LocalSocketSelector localSocketSelector;
     
     /**
      * Creates a new pipeline factory with the specified class for processing
@@ -67,7 +69,7 @@ public class HttpServerPipelineFactory implements ChannelPipelineFactory,
         this(authorizationManager, channelGroup, chainProxyManager, 
                 handshakeHandlerFactory, 
                 relayPipelineFactoryFactory, timer, clientChannelFactory, 
-                ProxyUtils.loadCacheManager());
+                ProxyUtils.loadCacheManager(), null);
     }
     
     /**
@@ -91,12 +93,14 @@ public class HttpServerPipelineFactory implements ChannelPipelineFactory,
         final HandshakeHandlerFactory handshakeHandlerFactory,
         final RelayPipelineFactoryFactory relayPipelineFactoryFactory, 
         final Timer timer, final ClientSocketChannelFactory clientChannelFactory,
-        final ProxyCacheManager proxyCacheManager) {
+        final ProxyCacheManager proxyCacheManager,
+        final LocalSocketSelector localSocketSelector) {
         
         this.handshakeHandlerFactory = handshakeHandlerFactory;
         this.relayPipelineFactoryFactory = relayPipelineFactoryFactory;
         this.timer = timer;
         this.clientChannelFactory = clientChannelFactory;
+        this.localSocketSelector = localSocketSelector;
         
         log.debug("Creating server with handshake handler: {}", 
                 handshakeHandlerFactory);
@@ -160,7 +164,7 @@ public class HttpServerPipelineFactory implements ChannelPipelineFactory,
         final HttpRequestHandler httpRequestHandler = 
             new HttpRequestHandler(this.cacheManager, authenticationManager,
             this.channelGroup, this.chainProxyManager, 
-            relayPipelineFactoryFactory, this.clientChannelFactory);
+            relayPipelineFactoryFactory, this.clientChannelFactory, this.localSocketSelector);
         
         pipeline.addLast("idle", new IdleStateHandler(this.timer, 0, 0, 70));
         //pipeline.addLast("idleAware", new IdleAwareHandler("Client-Pipeline"));

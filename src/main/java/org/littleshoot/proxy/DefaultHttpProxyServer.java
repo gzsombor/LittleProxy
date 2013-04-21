@@ -24,6 +24,7 @@ import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.ThreadNameDeterminer;
 import org.jboss.netty.util.ThreadRenamingRunnable;
 import org.jboss.netty.util.Timer;
+import org.littleshoot.proxy.netiface.LocalSocketSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +72,8 @@ public class DefaultHttpProxyServer implements HttpProxyServer {
 
     private final ProxyCacheManager cacheManager;
 
-    
+    private LocalSocketSelector localSocketSelector;
+
     /**
      * Creates a new proxy server.
      * 
@@ -330,7 +332,7 @@ public class DefaultHttpProxyServer implements HttpProxyServer {
                 new DefaultRelayPipelineFactoryFactory(chainProxyManager, 
                     this.responseFilters, this.requestFilter, 
                     this.allChannels, timer), timer, this.clientChannelFactory, 
-                    this.cacheManager);
+                    this.cacheManager, this.localSocketSelector);
         serverBootstrap.setPipelineFactory(factory);
         
         // Binding only to localhost can significantly improve the security of
@@ -433,4 +435,12 @@ public class DefaultHttpProxyServer implements HttpProxyServer {
             });
     }
 
+
+    public void setLocalSocketSelector(LocalSocketSelector localSocketSelector) {
+		this.localSocketSelector = localSocketSelector;
+	}
+
+    public LocalSocketSelector getLocalSocketSelector() {
+		return localSocketSelector;
+	}
 }

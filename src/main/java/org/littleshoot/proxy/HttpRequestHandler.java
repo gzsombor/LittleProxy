@@ -5,6 +5,7 @@ import static org.jboss.netty.channel.Channels.pipeline;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.Charset;
@@ -52,6 +53,7 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jboss.netty.handler.codec.http.HttpVersion;
 import org.littleshoot.dnssec4j.VerifiedAddressFactory;
+import org.littleshoot.proxy.netiface.LocalSocketSelector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +94,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         new AtomicInteger(0);
     
     private final ProxyAuthorizationManager authorizationManager;
-    
+    private final LocalSocketSelector localSocketSelector;
+
     private final Set<String> answeredRequests = new HashSet<String>();
     private final Set<String> unansweredRequests = new HashSet<String>();
 
@@ -162,7 +165,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         final RelayPipelineFactoryFactory relayPipelineFactoryFactory,
         final ClientSocketChannelFactory clientChannelFactory) {
         this(null, null, null, null, 
-            relayPipelineFactoryFactory, clientChannelFactory);
+            relayPipelineFactoryFactory, clientChannelFactory, null);
     }
     
     /**
@@ -185,7 +188,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         final RelayPipelineFactoryFactory relayPipelineFactoryFactory,
         final ClientSocketChannelFactory clientChannelFactory) {
         this(cacheManager, authorizationManager, channelGroup,
-            null, relayPipelineFactoryFactory, clientChannelFactory);
+            null, relayPipelineFactoryFactory, clientChannelFactory, null);
     }
     
     /**
@@ -208,7 +211,8 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         final ChannelGroup channelGroup, 
         final ChainProxyManager chainProxyManager, 
         final RelayPipelineFactoryFactory relayPipelineFactoryFactory,
-        final ClientSocketChannelFactory clientChannelFactory) {
+        final ClientSocketChannelFactory clientChannelFactory,
+        final LocalSocketSelector socketSelector) {
         log.info("Creating new request handler...");
         this.clientChannelFactory = clientChannelFactory;
         this.cacheManager = cacheManager;
@@ -216,6 +220,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         this.channelGroup = channelGroup;
         this.chainProxyManager = chainProxyManager;
         this.relayPipelineFactoryFactory = relayPipelineFactoryFactory;
+        this.localSocketSelector = socketSelector;
         if (LittleProxyConfig.isUseJmx()) {
             setupJmx();
         }
@@ -719,6 +724,13 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
             
         cb.setPipelineFactory(cpf);
         cb.setOption("connectTimeoutMillis", 40*1000);
+        if (localSocketSelector != null) {
+            SocketAddress localAddress = localSocketSelector.getLocalSocketAddress(httpRequest);
+            if (localAddress != null) {
+                cb.setOption("localAddress", localAddress);
+            }
+        }
+
         log.debug("Starting new connection to: {}", hostAndPort);
         final ChannelFuture cf;
         if (LittleProxyConfig.isUseDnsSec()) {
