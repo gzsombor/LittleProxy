@@ -51,7 +51,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
 
     private final RelayListener relayListener;
 
-    private final String hostAndPort;
+    private final ServerAddress hostAndPort;
 
     private boolean closeEndsResponseBody;
 
@@ -79,7 +79,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
      */
     public HttpRelayingHandler(final Channel browserToProxyChannel, 
         final ChannelGroup channelGroup, 
-        final RelayListener relayListener, final String hostAndPort) {
+        final RelayListener relayListener, final ServerAddress hostAndPort) {
         this (browserToProxyChannel, channelGroup, new NoOpHttpFilter(),
             relayListener, hostAndPort);
     }
@@ -96,7 +96,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
      */
     public HttpRelayingHandler(final Channel browserToProxyChannel,
         final ChannelGroup channelGroup, final HttpFilter filter,
-        final RelayListener relayListener, final String hostAndPort) {
+        final RelayListener relayListener, final ServerAddress hostAndPort) {
         this.browserToProxyChannel = browserToProxyChannel;
         this.channelGroup = channelGroup;
         this.httpFilter = filter;
@@ -258,7 +258,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
                     public void operationComplete(final ChannelFuture cf) 
                         throws Exception {
                         relayListener.onRelayHttpResponse(browserToProxyChannel, 
-                            hostAndPort, currentHttpRequest);
+                            hostAndPort.getHostAndPort(), currentHttpRequest);
                     }
                 });
             }
@@ -297,7 +297,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
             }
             if (wroteFullResponse && (!closePending && !closeRemote)) {
                 log.debug("Making remote channel available for requests");
-                this.relayListener.onChannelAvailable(hostAndPort,
+                this.relayListener.onChannelAvailable(hostAndPort.getHostAndPort(),
                     Channels.succeededFuture(me.getChannel()));
             }
         }
@@ -486,7 +486,7 @@ public class HttpRelayingHandler extends SimpleChannelUpstreamHandler
         final int unansweredRequests = this.requestQueue.size();
         log.debug("Unanswered requests: {}", unansweredRequests);
         this.relayListener.onRelayChannelClose(browserToProxyChannel, 
-            this.hostAndPort, unansweredRequests, this.closeEndsResponseBody);
+            this.hostAndPort.getHostAndPort(), unansweredRequests, this.closeEndsResponseBody);
     }
 
     @Override

@@ -31,15 +31,15 @@ public class DefaultRelayPipelineFactoryFactory
         final HttpRequest httpRequest, final Channel browserToProxyChannel,
         final RelayListener relayListener) {
 	
-        String hostAndPort = chainProxyManager == null
-            ? null : chainProxyManager.getChainProxy(httpRequest);
+        ServerAddress hostAndPort = chainProxyManager == null
+             ? null : chainProxyManager.getChainProxy(httpRequest);
         if (hostAndPort == null) {
-            hostAndPort = ProxyUtils.parseHostAndPort(httpRequest);
+            hostAndPort = new ServerAddress(ProxyUtils.parseHostAndPort(httpRequest));
         }
         
         return new DefaultRelayPipelineFactory(hostAndPort, httpRequest, 
             relayListener, browserToProxyChannel, channelGroup, responseFilters, 
-            requestFilter, chainProxyManager, this.timer);
+            requestFilter, this.timer);
     }
     
 }

@@ -41,8 +41,8 @@ public class TestUtils {
      */
     public static HttpProxyServer startProxyServer(int port, final String chainProxyHostAndPort) {
         final DefaultHttpProxyServer proxyServer = new DefaultHttpProxyServer(port, null, new ChainProxyManager() {
-            public String getChainProxy(HttpRequest httpRequest) {
-                return chainProxyHostAndPort;
+            public ProxyServerAddress getChainProxy(HttpRequest httpRequest) {
+                return new ProxyServerAddress(chainProxyHostAndPort);
             }
 
             public void onCommunicationError(String hostAndPort) {

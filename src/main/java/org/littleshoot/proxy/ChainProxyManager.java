@@ -12,7 +12,7 @@ public interface ChainProxyManager {
      * @param httpRequest The HTTP request.
      * @return The Chain Proxy with Host and Port.
      */
-    String getChainProxy(HttpRequest httpRequest);
+    ProxyServerAddress getChainProxy(HttpRequest httpRequest);
     
     
     /**

@@ -384,18 +384,18 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
             this.pendingRequestChunks = false;
         }
         
-        String hostAndPort = null;
+        ServerAddress hostAndPort = null;
         if (this.chainProxyManager != null) {
             hostAndPort = this.chainProxyManager.getChainProxy(request);
         }
         
         if (hostAndPort == null) {
-            hostAndPort = ProxyUtils.parseHostAndPort(request);
-            if (StringUtils.isBlank(hostAndPort)) {
+            hostAndPort = new ServerAddress(ProxyUtils.parseHostAndPort(request));
+            if (hostAndPort.isBlank()) {
                 final List<String> hosts = 
                     request.getHeaders(HttpHeaders.Names.HOST);
                 if (hosts != null && !hosts.isEmpty()) {
-                    hostAndPort = hosts.get(0);
+                    hostAndPort = new ServerAddress(hosts.get(0));
                 } else {
                     log.warn("No host and port found in {}", request.getUri());
                     badGateway(request, inboundChannel);
@@ -463,7 +463,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
             final ChannelFuture cf;
             ctx.getChannel().setReadable(false);
             try {
-                cf = newChannelFuture(request, inboundChannel, hostAndPort);
+                cf = newChannelFuture(request, inboundChannel, hostAndPort.getHostAndPort());
             } catch (final UnknownHostException e) {
                 log.warn("Could not resolve host?", e);
                 badGateway(request, inboundChannel);
@@ -474,9 +474,9 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
             
             final class LocalChannelFutureListener implements ChannelFutureListener {
                 
-                private final String copiedHostAndPort;
+                private final ServerAddress copiedHostAndPort;
 
-                LocalChannelFutureListener(final String copiedHostAndPort) {
+                LocalChannelFutureListener(final ServerAddress copiedHostAndPort) {
                     this.copiedHostAndPort = copiedHostAndPort;
                 }
             
@@ -513,24 +513,24 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
                         log.debug("Could not connect to " + copiedHostAndPort, 
                             future.getCause());
                         
-                        final String nextHostAndPort;
+                        final ServerAddress nextHostAndPort;
                         if (chainProxyManager == null) {
                             nextHostAndPort = copiedHostAndPort;
                         }
                         else {
-                            chainProxyManager.onCommunicationError(copiedHostAndPort);
+                            chainProxyManager.onCommunicationError(copiedHostAndPort.getHostAndPort());
                             nextHostAndPort = chainProxyManager.getChainProxy(request);
                         }
                         
                         if (copiedHostAndPort.equals(nextHostAndPort)) {
                             // We call the relay channel closed event handler
                             // with one associated unanswered request.
-                            onRelayChannelClose(inboundChannel, copiedHostAndPort, 1,
+                            onRelayChannelClose(inboundChannel, copiedHostAndPort.getHostAndPort(), 1,
                                 true);
                         }
                         else {
                             // TODO I am not sure about this
-                            removeProxyToWebConnection(copiedHostAndPort);
+                            removeProxyToWebConnection(copiedHostAndPort.getHostAndPort());
                             // try again with different hostAndPort
                             processRequest(ctx, me);
                         }
@@ -588,10 +588,10 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         }
     }
 
-    private ChannelFuture getChannelFuture(final String hostAndPort) {
+    private ChannelFuture getChannelFuture(final ServerAddress hostAndPort) {
         synchronized (this.externalHostsToChannelFutures) {
             final Queue<ChannelFuture> futures = 
-                this.externalHostsToChannelFutures.get(hostAndPort);
+                this.externalHostsToChannelFutures.get(hostAndPort.getHostAndPort());
             if (futures == null) {
                 return null;
             }
@@ -605,7 +605,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
                 // In this case, the future successfully connected at one
                 // time, but we're no longer connected. We need to remove the
                 // channel and open a new one.
-                removeProxyToWebConnection(hostAndPort);
+                removeProxyToWebConnection(hostAndPort.getHostAndPort());
                 return null;
             }
             return cf;
@@ -653,7 +653,7 @@ public class HttpRequestHandler extends SimpleChannelUpstreamHandler
         // us to forward along the HTTP CONNECT request. We then remove that
         // encoder as soon as it's written since past that point we simply
         // want to relay all data.
-        String chainProxy = null;
+        ServerAddress chainProxy = null;
         if (chainProxyManager != null) {
             chainProxy = chainProxyManager.getChainProxy(httpRequest);
             if (chainProxy != null) {

@@ -25,26 +25,25 @@ public class DefaultRelayPipelineFactory implements ChannelPipelineFactory {
     private static final Logger LOG = 
         LoggerFactory.getLogger(DefaultRelayPipelineFactory.class);
     
-    private final String hostAndPort;
+    private final ServerAddress hostAndPort;
     private final HttpRequest httpRequest;
     private final RelayListener relayListener;
     private final Channel browserToProxyChannel;
 
     private final ChannelGroup channelGroup;
     private final HttpRequestFilter requestFilter;
-    private final ChainProxyManager chainProxyManager;
     private final boolean filtersOff;
     private final HttpResponseFilters responseFilters;
 
     private final Timer timer;
 
-    public DefaultRelayPipelineFactory(final String hostAndPort, 
+    public DefaultRelayPipelineFactory(final ServerAddress hostAndPort, 
         final HttpRequest httpRequest, final RelayListener relayListener, 
         final Channel browserToProxyChannel,
         final ChannelGroup channelGroup, 
         final HttpResponseFilters responseFilters, 
         final HttpRequestFilter requestFilter, 
-        final ChainProxyManager chainProxyManager, final Timer timer) {
+        final Timer timer) {
         this.hostAndPort = hostAndPort;
         this.httpRequest = httpRequest;
         this.relayListener = relayListener;
@@ -53,7 +52,6 @@ public class DefaultRelayPipelineFactory implements ChannelPipelineFactory {
         this.channelGroup = channelGroup;
         this.responseFilters = responseFilters;
         this.requestFilter = requestFilter;
-        this.chainProxyManager = chainProxyManager;
         this.timer = timer;
         
         this.filtersOff = responseFilters == null;
@@ -92,7 +90,7 @@ public class DefaultRelayPipelineFactory implements ChannelPipelineFactory {
             shouldFilter = false;
             filter = null;
         } else {
-            filter = responseFilters.getFilter(hostAndPort);
+            filter = responseFilters.getFilter(hostAndPort.getHostAndPort());
             if (filter == null) {
                 LOG.info("No filter found");
                 shouldFilter = false;
@@ -130,8 +128,7 @@ public class DefaultRelayPipelineFactory implements ChannelPipelineFactory {
         
         final ProxyHttpRequestEncoder encoder = 
             new ProxyHttpRequestEncoder(handler, requestFilter, 
-                chainProxyManager != null
-                && chainProxyManager.getChainProxy(httpRequest) != null);
+                hostAndPort.isProxy());
         pipeline.addLast("encoder", encoder);
         
         // We close idle connections to remote servers after the
